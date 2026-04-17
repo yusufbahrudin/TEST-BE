@@ -3,6 +3,7 @@
 REST API TEST-BE untuk sistem login dan manajemen akses menu. Dibangun dengan Node.js + Express, database PostgreSQL via Prisma ORM, autentikasi JWT.
 
 ---
+Figma = ```https://www.figma.com/design/FRyBhW92Sa6IydaAfUtEbp/Untitled?node-id=0-1&p=f&t=SeVPnSHUB4ynaXWj-0``
 
 ## VS Code Extensions
 
