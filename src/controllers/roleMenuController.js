@@ -1,6 +1,5 @@
 const prisma = require('../prismaClient');
 
-// ─── Helper: bangun menu tree dari flat RoleMenu list ────────
 function buildMenuTree(roleMenus, parentId = null) {
   return roleMenus
     .filter((rm) => rm.menu.parentId === parentId)
@@ -12,7 +11,6 @@ function buildMenuTree(roleMenus, parentId = null) {
     }));
 }
 
-// GET /api/role-menus/:roleId  → Ambil semua menu yang dimiliki role (tree)
 const getMenusByRole = async (req, res, next) => {
   try {
     const roleId = Number(req.params.roleId);
@@ -35,8 +33,6 @@ const getMenusByRole = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// POST /api/role-menus  → Assign menu ke role
-// Body: { roleId, menuId }
 const assign = async (req, res, next) => {
   try {
     const { roleId, menuId } = req.body;
@@ -51,8 +47,6 @@ const assign = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// POST /api/role-menus/bulk  → Assign banyak menu sekaligus ke role
-// Body: { roleId, menuIds: [1, 2, 3] }
 const assignBulk = async (req, res, next) => {
   try {
     const { roleId, menuIds } = req.body;
@@ -60,7 +54,6 @@ const assignBulk = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'roleId dan menuIds (array) wajib diisi' });
     }
 
-    // Hapus dulu semua akses role ini, lalu buat ulang (replace strategy)
     await prisma.roleMenu.deleteMany({ where: { roleId: Number(roleId) } });
 
     await prisma.roleMenu.createMany({
@@ -75,7 +68,6 @@ const assignBulk = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// DELETE /api/role-menus/:roleId/:menuId  → Hapus akses menu dari role
 const remove = async (req, res, next) => {
   try {
     await prisma.roleMenu.deleteMany({
