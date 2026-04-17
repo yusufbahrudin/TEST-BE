@@ -1,0 +1,561 @@
+{
+  "info": {
+    "name": "TEST-BE — Login & Management Access",
+    "description": "Collection lengkap untuk testing API Login & Management Access System.\n\n**Setup:**\n1. Import collection ini\n2. Buat Environment bernama TEST-BE dengan variable:\n   - base_url = http://localhost:3000/api\n   - token = (kosong, akan otomatis terisi saat login)\n3. Jalankan server: npm run dev",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000/api" },
+    { "key": "token",    "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/",
+            "description": "Cek apakah server sudah berjalan"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('API is running', () => {",
+                  "    const d = pm.response.json();",
+                  "    pm.expect(d.message).to.eql('API is running');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john\",\n  \"password\": \"secret123\",\n  \"fullName\": \"John Doe\",\n  \"email\": \"john@example.com\"\n}"
+            },
+            "description": "Daftar akun baru. Tidak butuh token. User belum punya role sampai Admin assign."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('success true', () => {",
+                  "    pm.expect(pm.response.json().success).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login — Single Role (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"password123\"\n}"
+            },
+            "description": "Login sebagai admin (1 role). Langsung dapat token + menus tree."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test('dapat token', () => pm.expect(d.token).to.be.a('string'));",
+                  "pm.test('dapat menus', () => pm.expect(d.menus).to.be.an('array'));",
+                  "if (d.token) {",
+                  "    pm.collectionVariables.set('token', d.token);",
+                  "    pm.environment.set('token', d.token);",
+                  "    console.log('Token tersimpan');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login — Dual Role (budi)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"budi\",\n  \"password\": \"password123\"\n}"
+            },
+            "description": "Login sebagai budi (Manager + Staff). Response berisi requireRoleSelection: true dan daftar roles. Lanjutkan ke 'Select Role'."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test('requireRoleSelection true', () => {",
+                  "    pm.expect(d.requireRoleSelection).to.be.true;",
+                  "});",
+                  "pm.test('ada daftar roles', () => {",
+                  "    pm.expect(d.roles).to.be.an('array').with.length.greaterThan(1);",
+                  "});",
+                  "if (d.userId) {",
+                  "    pm.collectionVariables.set('dual_user_id', d.userId);",
+                  "    console.log('userId tersimpan:', d.userId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Select Role (lanjutan dual role)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/select-role",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 2,\n  \"roleId\": 2\n}"
+            },
+            "description": "Dipanggil setelah login dual role. userId & roleId dari response login sebelumnya. roleId 2 = Manager, roleId 3 = Staff."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test('dapat token', () => pm.expect(d.token).to.be.a('string'));",
+                  "if (d.token) {",
+                  "    pm.collectionVariables.set('token', d.token);",
+                  "    pm.environment.set('token', d.token);",
+                  "    console.log('Token Manager tersimpan');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Profile (me)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/auth/me",
+            "description": "Ambil data user yang sedang login + menus berdasarkan role di token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ada user dan menus', () => {",
+                  "    const d = pm.response.json();",
+                  "    pm.expect(d.user).to.be.an('object');",
+                  "    pm.expect(d.menus).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/users",
+            "description": "List semua user beserta roles mereka."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('data adalah array', () => {",
+                  "    pm.expect(pm.response.json().data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get User By ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/users/1",
+            "description": "Detail user berdasarkan ID."
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "{{base_url}}/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newuser\",\n  \"password\": \"pass123\",\n  \"fullName\": \"New User\",\n  \"email\": \"newuser@example.com\",\n  \"isActive\": true\n}"
+            },
+            "description": "Admin membuat user baru. Password akan di-hash otomatis."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json();",
+                  "if (d.data && d.data.id) {",
+                  "    pm.collectionVariables.set('new_user_id', d.data.id);",
+                  "    console.log('new_user_id:', d.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "{{base_url}}/users/{{new_user_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Updated Full Name\",\n  \"isActive\": true\n}"
+            },
+            "description": "Update data user. Semua field opsional, hanya yang dikirim yang akan diupdate."
+          }
+        },
+        {
+          "name": "Assign Role ke User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "{{base_url}}/users/{{new_user_id}}/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": 3\n}"
+            },
+            "description": "Assign role ke user. roleId 1=Admin, 2=Manager, 3=Staff."
+          }
+        },
+        {
+          "name": "Lepas Role dari User",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/users/{{new_user_id}}/roles/3",
+            "description": "Lepas role dari user."
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/users/{{new_user_id}}",
+            "description": "Hapus user beserta semua role-nya (cascade delete)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "item": [
+        {
+          "name": "Get All Roles",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/roles",
+            "description": "List semua role beserta jumlah user dan menu."
+          }
+        },
+        {
+          "name": "Get Role By ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/roles/1",
+            "description": "Detail role beserta users dan menus yang terhubung."
+          }
+        },
+        {
+          "name": "Create Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "{{base_url}}/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Supervisor\",\n  \"description\": \"Supervisor departemen\",\n  \"isActive\": true\n}"
+            },
+            "description": "Buat role baru."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json();",
+                  "if (d.data && d.data.id) {",
+                  "    pm.collectionVariables.set('new_role_id', d.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "{{base_url}}/roles/{{new_role_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Supervisor area produksi\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Role",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/roles/{{new_role_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Menus",
+      "item": [
+        {
+          "name": "Get All Menus (Tree)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/menus",
+            "description": "Ambil semua menu dalam format tree bertingkat (nested children)."
+          }
+        },
+        {
+          "name": "Get All Menus (Flat List)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/menus?flat=true",
+              "query": [{ "key": "flat", "value": "true" }]
+            },
+            "description": "Ambil semua menu dalam format flat (daftar biasa, ada parentId)."
+          }
+        },
+        {
+          "name": "Get Menu By ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/menus/1",
+            "description": "Detail menu beserta parent dan children langsung."
+          }
+        },
+        {
+          "name": "Create Menu (Root / Level 1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "{{base_url}}/menus",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Menu Baru\",\n  \"orderIndex\": 10,\n  \"parentId\": null\n}"
+            },
+            "description": "Buat menu root (level 1). parentId null = tidak punya parent."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const d = pm.response.json();",
+                  "if (d.data && d.data.id) {",
+                  "    pm.collectionVariables.set('new_menu_id', d.data.id);",
+                  "    console.log('new_menu_id:', d.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Sub-Menu (Child)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "{{base_url}}/menus",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sub Menu Baru\",\n  \"orderIndex\": 1,\n  \"parentId\": {{new_menu_id}}\n}"
+            },
+            "description": "Buat sub-menu dengan mengisi parentId = ID menu parent."
+          }
+        },
+        {
+          "name": "Update Menu",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "{{base_url}}/menus/{{new_menu_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Menu Diupdate\",\n  \"orderIndex\": 5\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Menu",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/menus/{{new_menu_id}}",
+            "description": "Hapus menu. Akan ditolak jika menu masih punya sub-menu (children)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Role-Menus",
+      "item": [
+        {
+          "name": "Lihat Menu Role Admin",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/role-menus/1",
+            "description": "Lihat semua menu yang bisa diakses role Admin (dalam bentuk tree)."
+          }
+        },
+        {
+          "name": "Lihat Menu Role Manager",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/role-menus/2",
+            "description": "Lihat semua menu yang bisa diakses role Manager."
+          }
+        },
+        {
+          "name": "Lihat Menu Role Staff",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/role-menus/3",
+            "description": "Lihat semua menu yang bisa diakses role Staff."
+          }
+        },
+        {
+          "name": "Assign Satu Menu ke Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "{{base_url}}/role-menus",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": 3,\n  \"menuId\": 1\n}"
+            },
+            "description": "Tambahkan akses 1 menu ke role tertentu."
+          }
+        },
+        {
+          "name": "Bulk Replace Akses Menu Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": "{{base_url}}/role-menus/bulk",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": 3,\n  \"menuIds\": [13, 14, 15]\n}"
+            },
+            "description": "Replace semua akses menu role sekaligus. Akses lama DIHAPUS, diganti dengan menuIds yang dikirim."
+          }
+        },
+        {
+          "name": "Cabut Akses Menu dari Role",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/role-menus/3/1",
+            "description": "Hapus akses menu ID 1 dari role ID 3."
+          }
+        }
+      ]
+    }
+  ]
+}
